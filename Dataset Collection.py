@@ -1,13 +1,15 @@
 import pefile
 import json
 import os
-def get_pe_info(exe_path):
+# import pandas as pd
+def get_pe_info(filename ,exe_path):
     pe = pefile.PE(exe_path)
     
     
     pe_info = {}
 
     # DOS_HEADER
+    pe_info['Name'] = filename
     pe_info['e_magic'] = pe.DOS_HEADER.e_magic
     pe_info['e_cblp'] = pe.DOS_HEADER.e_cblp
     pe_info['e_cp'] = pe.DOS_HEADER.e_cp
@@ -67,29 +69,29 @@ def get_pe_info(exe_path):
     
     # Sections
 
-    standardSectionNames = [".text", ".bss", ".rdata", ".data", ".idata", ".reloc", ".rsrc"]
+    # standardSectionNames = [".text", ".bss", ".rdata", ".data", ".idata", ".reloc", ".rsrc"]
 
-    SuspiciousNameSections = 0
+    # SuspiciousNameSections = 0
 
-    for section in pe.sections:
-        section_name = section.Name.decode().rstrip('\x00')
-        if section_name not in standardSectionNames:
-            SuspiciousNameSections += 1
-
-
-
-    suspiciousImportFunctions = ["CreateProcess", "OpenProcess", "WriteProcessMemory", "CreateRemoteThread", "ReadProcessMemory", "CreateFile", "RegSetValue", "RegCreateKey", "RegDeleteKey", "RegDeleteValue", "RegOpenKey", "RegQueryValue", "RegSetValue", "RegEnumValue", "WinExec", "ShellExecute", "HttpSendRequest", "InternetReadFile", "InternetConnect", "InternetOpen", "InternetOpenUrl", "InternetCrackUrl", "InternetSetOption"]
-
-    SuspiciousImportFunctions = 0
-
-    for entry in pe.DIRECTORY_ENTRY_IMPORT:
-        for imp in entry.imports:
-            if imp.name.decode() in suspiciousImportFunctions:
-                SuspiciousImportFunctions += 1
+    # for section in pe.sections:
+    #     section_name = section.Name.decode().rstrip('\x00')
+    #     if section_name not in standardSectionNames:
+    #         SuspiciousNameSections += 1
 
 
-    pe_info['SuspiciousImportFunctions'] = SuspiciousImportFunctions
-    pe_info['SuspiciousNameSection'] = SuspiciousNameSections          
+
+    # suspiciousImportFunctions = ["CreateProcess", "OpenProcess", "WriteProcessMemory", "CreateRemoteThread", "ReadProcessMemory", "CreateFile", "RegSetValue", "RegCreateKey", "RegDeleteKey", "RegDeleteValue", "RegOpenKey", "RegQueryValue", "RegSetValue", "RegEnumValue", "WinExec", "ShellExecute", "HttpSendRequest", "InternetReadFile", "InternetConnect", "InternetOpen", "InternetOpenUrl", "InternetCrackUrl", "InternetSetOption"]
+
+    # SuspiciousImportFunctions = 0
+
+    # for entry in pe.DIRECTORY_ENTRY_IMPORT:
+    #     for imp in entry.imports:
+    #         if imp.name is not None and imp.name.decode() in suspiciousImportFunctions:
+    #             SuspiciousImportFunctions += 1
+
+
+    #pe_info['SuspiciousImportFunctions'] = SuspiciousImportFunctions
+    #pe_info['SuspiciousNameSection'] = SuspiciousNameSections          
     pe_info['SectionsLength'] = len(pe.sections)
     pe_info['SectionMinEntropy'] = min(section.get_entropy() for section in pe.sections)
     pe_info['SectionMaxEntropy'] = max(section.get_entropy() for section in pe.sections)
@@ -123,17 +125,42 @@ def write_to_file(file_path, data):
     with open(file_path, 'w') as f:
         f.write(json.dumps(data, indent=4))
 
+csv_data = []
+
+def convert_json_to_csv(all_pe_info):
+    # with open(filename, 'w') as file:
+        # Write the header row
+        headers = list(next(iter(all_pe_info.values())).keys())
+        csv_data.append(','.join(headers) + '\n')
+        
+        # Write the data rows
+        for key, value in all_pe_info.items():
+            row = [key] + list(map(str, value.values()))
+            csv_data.append(','.join(row) + '\n')
+
+
+# def convert_json_to_csv(all_pe_info):
+#     global csv_data 
+#     for key, value in all_pe_info.items():
+#         row = [key] + list(value.values())
+#         csv_data.append(",".join(map(str, row)))
+#     return "\n".join(csv_data)
+
 def main():
-    directory_path = r'E:\Shared\EXE'  
-    output_file_path = r'D:\SIH\Output.txt'  
+    directory_path = r'C:\output\Exe\Malwares\malware_files'  
+    output_file_path = r'C:\output\Malware Data.csv'  
     all_pe_info = {}
     for filename in os.listdir(directory_path):
         if filename.endswith(".exe"):
             exe_path = os.path.join(directory_path, filename)
-            pe_info = get_pe_info(exe_path)
+            pe_info = get_pe_info(filename , exe_path)
             all_pe_info[filename] = pe_info  # Use filename as key
 
-    write_to_file(output_file_path, all_pe_info)
+    convert_json_to_csv(all_pe_info)
+    write_to_file(output_file_path, csv_data)
+    # df = pd.read_csv('C:\output\Malware Data.csv')
+    # print(df.head)
+
 
 if __name__ == '__main__':
     main()
